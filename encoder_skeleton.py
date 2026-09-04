@@ -47,16 +47,18 @@ def encode_r(mnemonic, operands):
     
     return instruction
 
-I_TYPE = [
-    "addi"
-    "andi"
-    "lb"
-    "lw"
-]
+# Diccionario
+# instruccion: funct3
+I_TYPE = {
+    "addi": 0b000,
+    "andi": 0b111,
+    "lb": 0b000,
+    "lw": 0b010,
+}
 
 def encode_i(mnemonic, operands):
     if len(operands) != 3:
-        raise ValueError(f"{mnemonic} requires rd, rs1, immediate")
+        raise ValueError(f"{mnemonic} requiere rd, rs1, immediate")
     
     rd = int(operands[0].strip("x"))
     rs1 = int(operands[1].strip("x"))
@@ -118,7 +120,7 @@ def encode_instruction(instruction: str) -> int:
             return encode_b(mnemonic, operands)
     else:
         raise ValueError(
-            f"Unsupported instruction: {mnemonic}"
+            f"Instruccion {mnemonic} no soportada"
         )
 
 
