@@ -17,6 +17,16 @@ import sys
 SOPORTADAS = ["add", "sub", "and", "or", "addi", "andi",
               "lw", "lb", "sw", "sb", "beq", "bne"]
 
+REGISTERS = {f"x{i}": i for i in range(32)}
+
+def get_reg(reg):
+    reg = reg.strip().lower()
+
+    if reg not in REGISTERS:
+        raise ValueError(f"Invalid register: {reg}")
+
+    return REGISTERS[reg]
+
 # Diccionario
 # instruccion: (funct3, funct7)
 R_TYPE = {
@@ -30,9 +40,9 @@ def encode_r(mnemonic, operands):
     if len(operands) != 3:
         raise ValueError(f"{mnemonic} requiere rd, rs1, rs2")
     
-    rd = int(operands[0].strip("x"))
-    rs1 = int(operands[1].strip("x"))
-    rs2 = int(operands[0].strip("x"))
+    rd = get_reg(operands[0])
+    rs1 = get_reg(operands[1])
+    rs2 = get_reg(operands[2])
     
     funct3, funct7 = R_TYPE[mnemonic]
     
@@ -56,12 +66,12 @@ I_TYPE = {
     "lw": 0b010,
 }
 
-def encode_i(mnemonic, operands):
+def encode_i_alu(mnemonic, operands):
     if len(operands) != 3:
         raise ValueError(f"{mnemonic} requiere rd, rs1, immediate")
     
-    rd = int(operands[0].strip("x"))
-    rs1 = int(operands[1].strip("x"))
+    rd = get_reg(operands[0])
+    rs1 = get_reg(operands[1])
     imm = int(operands[2])
     
     funct3 = I_TYPE[mnemonic]
@@ -75,6 +85,40 @@ def encode_i(mnemonic, operands):
     )
     
     return instruction
+
+def encode_i_load(mnemonic, operands):
+    if len(operands) != 2:
+        raise ValueError(f"{mnemonic} requires rd, offset(rs1)")
+
+    rd = get_reg(operands[0])
+    imm_str, rs1_str = operands[1].split("(")
+
+    imm = int(imm_str)
+    rs1 = get_reg(rs1_str.replace(")", ""))
+
+    funct3 = I_TYPE[mnemonic]
+
+    instruction = (
+        (imm << 20)
+        | (rs1 << 15)
+        | (funct3 << 12)
+        | (rd << 7)
+        | 0b0000011
+    )
+
+    return instruction
+
+def encode_i(mnemonic, operands):
+    alu = ["addi", "andi"]
+    load = ["lb", "lw"]
+    if mnemonic in alu:
+        return encode_i_alu(mnemonic, operands)
+    elif mnemonic in load:
+        return encode_i_load(mnemonic, operands)
+    else:
+        raise ValueError(
+            f"Instruccion {mnemonic} no soportada"
+        )
 
 S_TYPE = [
     "sb"
