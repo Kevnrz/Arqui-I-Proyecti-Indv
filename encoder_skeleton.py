@@ -66,18 +66,38 @@ I_TYPE = {
     "lw": 0b010,
 }
 
+def get_imm(value):
+    value = value.strip()
+
+    if value.lower().startswith("0x"):
+        return int(value, 16)
+
+    return int(value, 10)
+
+def check_size(value, bits):
+    minimum = -(1 << (bits - 1))
+    maximum = (1 << (bits - 1)) - 1
+
+    if not minimum <= value <= maximum:
+        raise ValueError(
+            f"Immediato {value} es muy grande, no cabe en {bits} bits con signo"
+        )
+
 def encode_i_alu(mnemonic, operands):
     if len(operands) != 3:
         raise ValueError(f"{mnemonic} requiere rd, rs1, immediate")
     
     rd = get_reg(operands[0])
     rs1 = get_reg(operands[1])
-    imm = int(operands[2])
+    imm = get_imm(operands[2])
+
+    check_size(imm, 12)
+    imm12 = imm & 0xFFF # extender negativo
     
     funct3 = I_TYPE[mnemonic]
     
     instruction = (
-        (imm << 20)
+        (imm12 << 20)
         | (rs1 << 15)
         | (funct3 << 12)
         | (rd << 7)
@@ -86,20 +106,37 @@ def encode_i_alu(mnemonic, operands):
     
     return instruction
 
+def get_memory_operands(operand):
+    operand = operand.strip()
+
+    try:
+        imm_part, reg_part = operand.split("(")
+        reg_part = reg_part.rstrip(")")
+
+        imm = get_imm(imm_part)
+        rs1 = get_reg(reg_part)
+
+        return imm, rs1
+
+    except Exception:
+        raise ValueError(
+            f"Error en operando de memoria: {operand}."
+        )    
+
 def encode_i_load(mnemonic, operands):
     if len(operands) != 2:
-        raise ValueError(f"{mnemonic} requires rd, offset(rs1)")
+        raise ValueError(f"{mnemonic} requiere rd, offset(rs1)")
 
     rd = get_reg(operands[0])
-    imm_str, rs1_str = operands[1].split("(")
+    imm, rs1 = get_memory_operands(operands[1])
 
-    imm = int(imm_str)
-    rs1 = get_reg(rs1_str.replace(")", ""))
+    check_size(imm, 12)
+    imm12 = imm & 0xFFF # extender negativo
 
     funct3 = I_TYPE[mnemonic]
 
     instruction = (
-        (imm << 20)
+        (imm12 << 20)
         | (rs1 << 15)
         | (funct3 << 12)
         | (rd << 7)
@@ -120,13 +157,43 @@ def encode_i(mnemonic, operands):
             f"Instruccion {mnemonic} no soportada"
         )
 
-S_TYPE = [
-    "sb"
-    "sw"
-]
+# Diccionario
+# instruccion: funct3
+S_TYPE = {
+    "sb": 0b000,
+    "sw": 0b010,
+}
+
+def get_imm_bits(value, high, low):
+    width = high - low + 1
+    mask = (1 << width) - 1
+    return (value >> low) & mask
 
 def encode_s(mnemonic, operands):
-    pass
+    if len(operands) != 2:
+        raise ValueError(f"{mnemonic} requiere rs2, offset(rs1)")
+
+    rs2 = get_reg(operands[0])
+    imm, rs1 = get_memory_operands(operands[1])
+
+    check_size(imm, 12)
+    imm12 = imm & 0xFFF # extender negativo
+
+    imm_11_5 = get_imm_bits(imm12, 11, 5)
+    imm_4_0 = get_imm_bits(imm12, 4, 0)
+
+    funct3 = S_TYPE[mnemonic]
+
+    instruction = (
+        (imm_11_5 << 25)
+        | (rs2 << 20)
+        | (rs1 << 15)
+        | (funct3 << 12)
+        | (imm_4_0 << 7)
+        | 0b0100011
+    )
+
+    return instruction
 
 B_TYPE = [
     "beq"
