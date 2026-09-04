@@ -195,13 +195,49 @@ def encode_s(mnemonic, operands):
 
     return instruction
 
-B_TYPE = [
-    "beq"
-    "bne"
-]
+# Diccionario
+# instruccion: funct3
+B_TYPE = {
+    "beq": 0b000,
+    "bne": 0b001,
+}
 
 def encode_b(mnemonic, operands):
-    pass
+    if len(operands) != 3:
+        raise ValueError(f"{mnemonic} requiere rs1, rs2, offset")
+
+    rs1 = get_reg(operands[0])
+    rs2 = get_reg(operands[1])
+    imm = get_imm(operands[2])
+
+    check_size(imm, 13)
+
+    if imm % 2 != 0:
+        raise ValueError(
+            f"Desplazamiento {imm} debe estar alineado a 2 bits"
+        )
+
+    imm13 = imm & 0x1FFF # extender signo
+
+    imm12 = get_imm_bits(imm13, 12, 12)
+    imm10_5 = get_imm_bits(imm13, 10, 5)
+    imm4_1 = get_imm_bits(imm13, 4, 1)
+    imm11 = get_imm_bits(imm13, 11, 11)
+
+    funct3 = B_TYPE[mnemonic]
+
+    instruction = (
+        (imm12 << 31)
+        | (imm10_5 << 25)
+        | (rs2 << 20)
+        | (rs1 << 15)
+        | (funct3 << 12)
+        | (imm4_1 << 8)
+        | (imm11 << 7)
+        | 0b1100011
+    )
+
+    return instruction
 
 def encode_instruction(instruction: str) -> int:
     """
