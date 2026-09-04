@@ -55,7 +55,24 @@ I_TYPE = [
 ]
 
 def encode_i(mnemonic, operands):
-    pass
+    if len(operands) != 3:
+        raise ValueError(f"{mnemonic} requires rd, rs1, immediate")
+    
+    rd = int(operands[0].strip("x"))
+    rs1 = int(operands[1].strip("x"))
+    imm = int(operands[2])
+    
+    funct3 = I_TYPE[mnemonic]
+    
+    instruction = (
+        (imm << 20)
+        | (rs1 << 15)
+        | (funct3 << 12)
+        | (rd << 7)
+        | 0b0010011
+    )
+    
+    return instruction
 
 S_TYPE = [
     "sb"
