@@ -23,7 +23,7 @@ def get_reg(reg):
     reg = reg.strip().lower()
 
     if reg not in REGISTERS:
-        raise ValueError(f"Invalid register: {reg}")
+        raise ValueError(f"Registro {reg} invalido")
 
     return REGISTERS[reg]
 
@@ -35,6 +35,8 @@ R_TYPE = {
     "and": (0b111, 0b0000000),
     "or":  (0b110, 0b0000000),
 }
+
+OPCODE_R = 0b0110011
 
 def encode_r(mnemonic, operands):
     if len(operands) != 3:
@@ -52,7 +54,7 @@ def encode_r(mnemonic, operands):
         | (rs1 << 15)
         | (funct3 << 12)
         | (rd << 7)
-        | 0b0110011
+        | OPCODE_R
     )
     
     return instruction
@@ -65,6 +67,9 @@ I_TYPE = {
     "lb": 0b000,
     "lw": 0b010,
 }
+
+OPCODE_I_ALU = 0b0010011
+OPCODE_I_LOAD = 0b0000011
 
 def get_imm(value):
     value = value.strip()
@@ -79,9 +84,7 @@ def check_size(value, bits):
     maximum = (1 << (bits - 1)) - 1
 
     if not minimum <= value <= maximum:
-        raise ValueError(
-            f"Immediato {value} es muy grande, no cabe en {bits} bits con signo"
-        )
+        raise ValueError(f"Tamano de inmediato {value} invalido, debe estar entre -{2**bits} y {2**bits - 1}.")
 
 def encode_i_alu(mnemonic, operands):
     if len(operands) != 3:
@@ -101,7 +104,7 @@ def encode_i_alu(mnemonic, operands):
         | (rs1 << 15)
         | (funct3 << 12)
         | (rd << 7)
-        | 0b0010011
+        | OPCODE_I_ALU
     )
     
     return instruction
@@ -140,7 +143,7 @@ def encode_i_load(mnemonic, operands):
         | (rs1 << 15)
         | (funct3 << 12)
         | (rd << 7)
-        | 0b0000011
+        | OPCODE_I_LOAD
     )
 
     return instruction
@@ -153,9 +156,7 @@ def encode_i(mnemonic, operands):
     elif mnemonic in load:
         return encode_i_load(mnemonic, operands)
     else:
-        raise ValueError(
-            f"Instruccion {mnemonic} no soportada"
-        )
+        raise ValueError(f"Instruccion {mnemonic} no soportada")
 
 # Diccionario
 # instruccion: funct3
@@ -163,6 +164,8 @@ S_TYPE = {
     "sb": 0b000,
     "sw": 0b010,
 }
+
+OPCODE_S = 0b0100011
 
 def get_imm_bits(value, high, low):
     width = high - low + 1
@@ -190,7 +193,7 @@ def encode_s(mnemonic, operands):
         | (rs1 << 15)
         | (funct3 << 12)
         | (imm_4_0 << 7)
-        | 0b0100011
+        | OPCODE_S
     )
 
     return instruction
@@ -201,6 +204,8 @@ B_TYPE = {
     "beq": 0b000,
     "bne": 0b001,
 }
+
+OPCODE_B = 0b1100011
 
 def encode_b(mnemonic, operands):
     if len(operands) != 3:
@@ -213,9 +218,7 @@ def encode_b(mnemonic, operands):
     check_size(imm, 13)
 
     if imm % 2 != 0:
-        raise ValueError(
-            f"Desplazamiento {imm} debe estar alineado a 2 bits"
-        )
+        raise ValueError(f"Desplazamiento {imm} debe estar alineado a 2 bits")
 
     imm13 = imm & 0x1FFF # extender signo
 
@@ -234,7 +237,7 @@ def encode_b(mnemonic, operands):
         | (funct3 << 12)
         | (imm4_1 << 8)
         | (imm11 << 7)
-        | 0b1100011
+        | OPCODE_B
     )
 
     return instruction
@@ -266,9 +269,141 @@ def encode_instruction(instruction: str) -> int:
         elif mnemonic in B_TYPE:
             return encode_b(mnemonic, operands)
     else:
-        raise ValueError(
-            f"Instruccion {mnemonic} no soportada"
-        )
+        raise ValueError(f"Instruccion {mnemonic} no soportada")
+
+def explain_r(mnemonic, operands):
+    rd = get_reg(operands[0])
+    rs1 = get_reg(operands[1])
+    rs2 = get_reg(operands[2])
+
+    funct3, funct7 = R_TYPE[mnemonic]
+
+    print("Tipo         : R")
+    print("Codificacion : funct7 | rs2 | rs1 | funct3 | rd | opcode")
+    print()
+
+    print(f"funct7      : {funct7:07b}")
+    print(f"rs2         : {rs2:05b} = {rs2}")
+    print(f"rs1         : {rs1:05b} = {rs1}")
+    print(f"funct3      : {funct3:03b}")
+    print(f"rd          : {rd:05b} = {rd}")
+    print(f"opcode      : {OPCODE_R:07b}")
+
+    print()
+    print(
+        f"Resultado  : "
+        f"{funct7:07b}_{rs2:05b}_{rs1:05b}_"
+        f"{funct3:03b}_{rd:05b}_{OPCODE_R:07b}"
+    )
+
+def explain_i(mnemonic, operands):
+    alu = ["addi", "andi"]
+    load = ["lb", "lw"]
+    if mnemonic in alu:
+        rd = get_reg(operands[0])
+        rs1 = get_reg(operands[1])
+        imm = get_imm(operands[2])
+        opcode = OPCODE_I_ALU
+    elif mnemonic in load:
+        rd = get_reg(operands[0])
+        imm, rs1 = get_memory_operands(operands[1])
+        opcode = OPCODE_I_LOAD
+    else:
+        raise ValueError(f"Instruccion {mnemonic} no soportada")   
+    
+    check_size(imm, 12)
+
+    imm12 = imm & 0xFFF
+    funct3 = I_TYPE[mnemonic]
+
+    print("Tipo         : I")
+    print("Codificacion : immediato | rs1 | funct3 | rd | opcode")
+    print()
+
+    print(f"immediato   : {imm12:012b} = {imm}")
+    print(f"rs1         : {rs1:05b} = {rs1}")
+    print(f"funct3      : {funct3:03b}")
+    print(f"rd          : {rd:05b} = {rd}")
+    print(f"opcode      : {opcode:07b}")
+
+    print()
+    print(
+        f"Resultado  : "
+        f"{imm12:012b}_{rs1:05b}_{funct3:03b}_"
+        f"{rd:05b}_{OPCODE_I_ALU:07b}"
+    )
+
+def explain_s(mnemonic, operands):
+    rs2 = get_reg(operands[0])
+    imm, rs1 = get_memory_operands(operands[1])
+
+    check_size(imm, 12)
+
+    imm12 = imm & 0xFFF
+
+    imm_11_5 = get_imm_bits(imm12, 11, 5)
+    imm_4_0 = get_imm_bits(imm12, 4, 0)
+
+    funct3 = S_TYPE[mnemonic]
+
+    print("Tipo         : S")
+    print("Codificacion : imm[11:5] | rs2 | rs1 | funct3 | imm[4:0] | opcode")
+    print()
+
+    print(f"imm[11:5]   : {imm_11_5:07b} = {imm_11_5}")
+    print(f"rs2         : {rs2:05b} = {rs2}")
+    print(f"rs1         : {rs1:05b} = {rs1}")
+    print(f"funct3      : {funct3:03b}")
+    print(f"imm[4:0]    : {imm_4_0:05b} = {imm_4_0}")
+    print(f"opcode      : {OPCODE_S:07b}")
+
+    print()
+    print(
+        f"Resultado  : "
+        f"{imm_11_5:07b}_{rs2:05b}_{rs1:05b}_"
+        f"{funct3:03b}_{imm_4_0:05b}_{OPCODE_S:07b}"
+    )
+
+def explain_b(mnemonic, operands):
+    rs1 = get_reg(operands[0])
+    rs2 = get_reg(operands[1])
+    imm = get_imm(operands[2])
+
+    check_size(imm, 13)
+
+    if imm % 2 != 0:
+        raise ValueError("Branch offset must be 2-byte aligned")
+
+    imm13 = imm & 0x1FFF
+
+    imm12 = get_imm_bits(imm13, 12, 12)
+    imm10_5 = get_imm_bits(imm13, 10, 5)
+    imm4_1 = get_imm_bits(imm13, 4, 1)
+    imm11 = get_imm_bits(imm13, 11, 11)
+
+    funct3 = B_TYPE[mnemonic]
+
+    print("Type         : B-type")
+    print("Codificacion : imm[12] | imm[10:5] | rs2 | rs1 | funct3 | imm[4:1] | imm[11] | opcode")
+    print()
+
+    print(f"imm[12]     : {imm12:01b} = {imm12}")
+    print(f"imm[10:5]   : {imm10_5:06b} = {imm10_5}")
+    print(f"rs2         : {rs2:05b} = {rs2}")
+    print(f"rs1         : {rs1:05b} = {rs1}")
+    print(f"funct3      : {funct3:03b} = {funct3}")
+    print(f"imm[4:1]    : {imm4_1:04b} = {imm4_1}")
+    print(f"imm[11]     : {imm11:01b} = {imm11}")
+    print(f"opcode      : {OPCODE_B:07b} = {OPCODE_B}")
+
+    print()
+    print(
+        f"Resultado  : "
+        f"{imm12:01b}_{imm10_5:06b}_{rs2:05b}_{rs1:05b}_"
+        f"{funct3:03b}_{imm4_1:04b}_{imm11:01b}_"
+        f"{OPCODE_B:07b}"
+    )
+
 
 
 def explain_instruction(instruction: str, word: int) -> str:
@@ -281,7 +416,26 @@ def explain_instruction(instruction: str, word: int) -> str:
     criterio, siempre que sea claro.
     """
     # TODO: implementar.
-    raise NotImplementedError("explain_instruction: pendiente de implementar")
+    parts = instruction.replace(",", " ").split()
+    mnemonic = parts[0].lower()
+    operands = parts[1:]
+
+    print("=" * 60)
+    print(f"Instruccion : {instruction}")
+    print()
+    if mnemonic in SOPORTADAS:
+        if mnemonic in R_TYPE:
+            explain_r(mnemonic, operands)
+        elif mnemonic in I_TYPE:
+            explain_i(mnemonic, operands)
+        elif mnemonic in S_TYPE:
+            explain_s(mnemonic, operands)
+        elif mnemonic in B_TYPE:
+            explain_b(mnemonic, operands)
+    else:
+        raise ValueError(f"Instruccion {mnemonic} no soportada")
+
+    print("=" * 60)
 
 
 def main():
