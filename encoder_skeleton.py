@@ -17,6 +17,41 @@ import sys
 SOPORTADAS = ["add", "sub", "and", "or", "addi", "andi",
               "lw", "lb", "sw", "sb", "beq", "bne"]
 
+R_TYPE = [
+    "add"
+    "sub"
+    "and"
+    "or"
+]
+
+def encode_r(mnemonic, operands):
+    pass
+
+I_TYPE = [
+    "addi"
+    "andi"
+    "lb"
+    "lw"
+]
+
+def encode_i(mnemonic, operands):
+    pass
+
+S_TYPE = [
+    "sb"
+    "sw"
+]
+
+def encode_s(mnemonic, operands):
+    pass
+
+B_TYPE = [
+    "beq"
+    "bne"
+]
+
+def encode_b(mnemonic, operands):
+    pass
 
 def encode_instruction(instruction: str) -> int:
     """
@@ -29,9 +64,25 @@ def encode_instruction(instruction: str) -> int:
     la especificación) y documentarse en el README.
     """
     # TODO: implementar. Sugerencia: parsear el mnemónico y los operandos,
+    parts = instruction.replace(",", " ").split()
+
+    mnemonic = parts[0].lower()
+    operands = parts[1:]
     # despachar según el formato (R/I/S/B), y ensamblar los campos con
     # operaciones de bits.
-    raise NotImplementedError("encode_instruction: pendiente de implementar")
+    if mnemonic in SOPORTADAS:
+        if mnemonic in R_TYPE:
+            return encode_r(mnemonic, operands)
+        elif mnemonic in I_TYPE:
+            return encode_i(mnemonic, operands)
+        elif mnemonic in S_TYPE:
+            return encode_s(mnemonic, operands)
+        elif mnemonic in B_TYPE:
+            return encode_b(mnemonic, operands)
+    else:
+        raise ValueError(
+            f"Unsupported instruction: {mnemonic}"
+        )
 
 
 def explain_instruction(instruction: str, word: int) -> str:
