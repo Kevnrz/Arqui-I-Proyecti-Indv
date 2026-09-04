@@ -17,15 +17,35 @@ import sys
 SOPORTADAS = ["add", "sub", "and", "or", "addi", "andi",
               "lw", "lb", "sw", "sb", "beq", "bne"]
 
-R_TYPE = [
-    "add"
-    "sub"
-    "and"
-    "or"
-]
+# Diccionario
+# instruccion: (funct3, funct7)
+R_TYPE = {
+    "add": (0b000, 0b0000000),
+    "sub": (0b000, 0b0100000),
+    "and": (0b111, 0b0000000),
+    "or":  (0b110, 0b0000000),
+}
 
 def encode_r(mnemonic, operands):
-    pass
+    if len(operands) != 3:
+        raise ValueError(f"{mnemonic} requiere rd, rs1, rs2")
+    
+    rd = int(operands[0].strip("x"))
+    rs1 = int(operands[1].strip("x"))
+    rs2 = int(operands[0].strip("x"))
+    
+    funct3, funct7 = R_TYPE[mnemonic]
+    
+    instruction = (
+        (funct7 << 25)
+        | (rs2 << 20)
+        | (rs1 << 15)
+        | (funct3 << 12)
+        | (rd << 7)
+        | 0b0110011
+    )
+    
+    return instruction
 
 I_TYPE = [
     "addi"
