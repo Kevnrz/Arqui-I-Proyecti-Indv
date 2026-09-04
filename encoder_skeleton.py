@@ -391,10 +391,10 @@ def explain_b(mnemonic, operands):
     print(f"imm[10:5]   : {imm10_5:06b} = {imm10_5}")
     print(f"rs2         : {rs2:05b} = {rs2}")
     print(f"rs1         : {rs1:05b} = {rs1}")
-    print(f"funct3      : {funct3:03b} = {funct3}")
+    print(f"funct3      : {funct3:03b}")
     print(f"imm[4:1]    : {imm4_1:04b} = {imm4_1}")
     print(f"imm[11]     : {imm11:01b} = {imm11}")
-    print(f"opcode      : {OPCODE_B:07b} = {OPCODE_B}")
+    print(f"opcode      : {OPCODE_B:07b}")
 
     print()
     print(
