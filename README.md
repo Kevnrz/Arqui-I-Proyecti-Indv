@@ -1,31 +1,155 @@
-# Kit del proyecto
+# Codificador de instrucciones RV32I
 
-- `encoder_skeleton.py`: esqueleto en Python con el contrato de entrada/salida
-  ya implementado. Complete `encode_instruction` y `explain_instruction`.
-  Su uso es opcional; puede implementar la herramienta en otro lenguaje o
-  desde cero, siempre que respete el mismo contrato (ver especificación).
-- `run.sh`: punto de entrada fijo y obligatorio (`./run.sh "<instruccion>"`).
-  Tal como se entrega, invoca `encoder_skeleton.py`. Si cambia de lenguaje o
-  de estructura, ajuste este archivo para que siga invocando su solución de
-  la misma forma.
-- `vectores_ejemplo.txt`: instrucciones de ejemplo junto con su codificación
-  correcta, para que pueda comprobar su herramienta desde el primer día.
+Este proyecto consiste en un codificador de instrucciones RV32I, contando con una función que convierte la instrucción en ensamblador a su valor hexadecimal. Además se tiene una función que explica la codificación de cada instrucción.
 
-## Cómo usar `vectores_ejemplo.txt`
+Para validar la solución se tiene un script que compara la solución propuesta con el resultado de **RISC-V GNU Toolchain** usando `objdump`.
 
-El archivo tiene el formato `instruccion ; 0xHEX`, una por línea (las líneas
-que empiezan con `#` son comentarios). Por ejemplo:
+## Requerimientos
 
+### Python
+
+Se requiere Python 3, únicamente con la biblioteca estándar de este.
+
+### RISC-V GNU Toolchain
+
+Las pruebas se realizan  con el ensamblador RISC-V GNU y `objdump`. Se utiliza la versión de 64 bits:
+
+```text
+riscv64-unknown-elf-as
+riscv64-unknown-elf-objdump
 ```
-add x7, x20, x6 ; 0x006a03b3
+
+Con esta se puede ensamblar código en RV32I, utilizando la siguiente opción:
+
+```text
+-march=rv32i
 ```
 
-Esto significa: al ejecutar `./run.sh "add x7, x20, x6"`, la línea `HEX:`
-de su salida debe ser exactamente `HEX: 0x006a03b3`.
+## Instrucciones Soportadas
 
-Puede comparar manualmente, o escribir un script propio corto que lea el
-archivo línea por línea, ejecute `./run.sh` con cada instrucción, y compare
-el resultado. Estos vectores son un conjunto de ejemplo para su propia
-comprobación; **no sustituyen** los al menos 3 casos de prueba por
-instrucción (36 en total) que la especificación pide construir y validar
-usted mismo contra el toolchain oficial (`objdump -d`).
+El codificador incluye las siguientes instrucciones de RV32I:
+
+### Tipo R
+
+```text
+add
+sub
+and
+or
+```
+
+Ejemplo de formato:
+```text
+instruccion rd, rs1, rs2
+```
+
+### Tipo I
+
+```text
+addi
+andi
+lw
+lb
+```
+
+Ejemplo de formato para operaciones de ALU:
+
+```text
+instruccion rd, rs1, immediato
+```
+
+Ejemplo de formato para operaciones de Load:
+
+```text
+instruccion rd, offset(rs1)
+```
+
+El immediato o offset debe ser un valor con signo de 12 bits:
+
+```text
+-2048 to 2047
+```
+
+### Tipo S
+
+```text
+sw
+sb
+```
+
+Ejemplo de formatot:
+
+```text
+instruccion rs2, offset(rs1)
+```
+
+El offset debe ser un valor con signo de 12 bits:
+
+```text
+-2048 to 2047
+```
+
+### Tipo B
+
+```text
+beq
+bne
+```
+
+Ejemplo de formatot:
+
+```text
+instruccion rs1, rs2, offset
+```
+
+En RV31I el rango de desplazamiento es el siguiente, en incrementos de 2 bits:
+
+```text
+-4096 to 4094
+```
+
+## Ejecutar pruebas contra ensamblador RISC-V GNU y ejemplos
+
+Los siguientes archivos deben estar el mismo directorio:
+
+```text
+encoder_skeleton.py
+tests.s
+test_encoder.py
+vectores_ejemplo.txt
+```
+
+Luego se ejecuta el archivo de pruebas:
+
+```bash
+python3 test_encoder.py
+```
+
+Este ensambla el archivo:
+
+```text
+tests.s
+```
+
+Utilizando:
+
+```bash
+riscv64-unknown-elf-as \
+    -march=rv32i \
+    -mabi=ilp32 \
+    -o rv32i_tests.o \
+    rv32i_tests.s
+```
+
+Luego se utiliza:
+
+```bash
+riscv64-unknown-elf-objdump \
+    -d \
+    -M numeric \
+    rv32i_tests.o
+```
+
+Para obtener el `objdump` que se utiliza como referencia.
+
+---
